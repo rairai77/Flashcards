@@ -2,7 +2,7 @@
 #define FILE_MANAGER_H
 
 #include <FS.h>
-#include <SPIFFS.h>
+#include <LittleFS.h>
 
 class FileManager {
 public:
@@ -12,10 +12,10 @@ public:
   bool begin();
   
   // Create a sample file if it doesn't exist
-  void createSampleFile();
+  void createEmptyFile();
   
   // Read file content
-  String readFile(const char* path, int maxChars = -1);
+  String readFile(const char* path, int maxLines = -1);
   
   // Write to a file
   bool writeFile(const char* path, const String& content);

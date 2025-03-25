@@ -5,25 +5,22 @@ FileManager::FileManager() {
 }
 
 bool FileManager::begin() {
-  return SPIFFS.begin(true);
+  return LittleFS.begin(true);
 }
 
-void FileManager::createSampleFile() {
-  if (!SPIFFS.exists("/myfile.txt")) {
-    File file = SPIFFS.open("/myfile.txt", "w");
+void FileManager::createEmptyFile() {
+  if (!LittleFS.exists("/flashcards.txt")) {
+    File file = LittleFS.open("/flaschards.txt", "w");
     if (file) {
-      file.println("This is a test file for M5Paper.");
-      file.println("Hello from SPIFFS!");
-      file.println("You can edit this file using data upload.");
-      file.println("This file was created on first run.");
+      file.println("0");
       file.close();
-      Serial.println("Test file created");
+      Serial.println("Dummy file created");
     }
   }
 }
 
-String FileManager::readFile(const char* path, int maxChars) {
-  File file = SPIFFS.open(path, "r");
+String FileManager::readFile(const char* path, int maxLines) {
+  File file = LittleFS.open(path, "r");
   String content = "";
   
   if (!file) {
@@ -33,7 +30,7 @@ String FileManager::readFile(const char* path, int maxChars) {
   
   Serial.println("Reading file: " + String(path));
   
-  if (maxChars < 0) {
+  if (maxLines < 0) {
     // Read the entire file
     while (file.available()) {
       content += (char)file.read();
@@ -41,9 +38,12 @@ String FileManager::readFile(const char* path, int maxChars) {
   } else {
     // Read limited number of characters
     int count = 0;
-    while (file.available() && count < maxChars) {
-      content += (char)file.read();
-      count++;
+    while (file.available() && count < maxLines) {
+      char new_char = (char) file.read();
+      content += new_char;
+      if(new_char=='\n'){
+        count++;
+      }
     }
   }
   
@@ -52,7 +52,7 @@ String FileManager::readFile(const char* path, int maxChars) {
 }
 
 bool FileManager::writeFile(const char* path, const String& content) {
-  File file = SPIFFS.open(path, "w");
+  File file = LittleFS.open(path, "w");
   if (!file) {
     Serial.println("Failed to open file for writing");
     return false;
@@ -70,7 +70,7 @@ bool FileManager::writeFile(const char* path, const String& content) {
 }
 
 bool FileManager::appendFile(const char* path, const String& content) {
-  File file = SPIFFS.open(path, "a");
+  File file = LittleFS.open(path, "a");
   if (!file) {
     Serial.println("Failed to open file for appending");
     return false;
@@ -88,7 +88,7 @@ bool FileManager::appendFile(const char* path, const String& content) {
 }
 
 bool FileManager::deleteFile(const char* path) {
-  if (SPIFFS.remove(path)) {
+  if (LittleFS.remove(path)) {
     Serial.println("File deleted");
     return true;
   } else {
@@ -98,10 +98,10 @@ bool FileManager::deleteFile(const char* path) {
 }
 
 void FileManager::listFiles() {
-  File root = SPIFFS.open("/");
+  File root = LittleFS.open("/");
   File file = root.openNextFile();
   
-  Serial.println("Files in SPIFFS:");
+  Serial.println("Files in LittleFS:");
   
   while (file) {
     Serial.print("  ");
