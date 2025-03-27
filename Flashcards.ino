@@ -14,20 +14,14 @@ int textY = 100;
 int textWidth = 540;
 int textHeight = 180;
 
-// File manager instance
-FileManager fileManager;
-
 void setup(void) {
   // Initialize serial (for debugging)
   Serial.begin(115200);
   delay(500);
   
   // Initialize the file manager
-  if (!fileManager.begin()) {
+  if (!LittleFS.begin()) {
     Serial.println("LittleFS mount failed");
-  } else {
-    Serial.println("LittleFS mounted successfully");
-    fileManager.createEmptyFile();
   }
   
   // Initialize the display
@@ -62,7 +56,7 @@ void readAndDisplayFile() {
   display.drawRect(textX, textY, textWidth, textHeight, TFT_BLACK);
   
   // Read file content
-  String fileContent = fileManager.readFile("/flashcards.txt", 3); // Read first line
+  String fileContent = fileManager.readFile("/flashcards.csv", 3); // Read first line
   
   if (fileContent.length() == 0) {
     display.setTextColor(TFT_BLACK);
