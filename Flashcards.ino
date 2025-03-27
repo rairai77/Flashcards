@@ -1,29 +1,39 @@
 #include <epdiy.h>
 #include <M5GFX.h>
+#include <LittleFS.h>
 #include "TouchButton.h"
-#include "FileManager.h"
+#include "FlashcardDeck.h"
+#include "Flashcard.h"
 
 M5GFX display;
 
 // Create a button
-TouchButton myButton(100, 300, 200, 60, "READ FILE");
+TouchButton flipButton(100, 400, 200, 60, "Flip Card");
+TouchButton correctButton(50, 500, 150, 60, "Correct");
+TouchButton wrongButton(250, 500, 150, 60, "Wrong");
+TouchButton nextButton(350, 400, 150, 60, "Next");
 
 // Text area to display file contents
-int textX = 50;
-int textY = 100;
-int textWidth = 540;
-int textHeight = 180;
+int cardX = 25;
+int cardY = 100;
+int cardWidth = 490;
+int cardHeight = 300;
+
+FlashcardDeck* deck = NULL;
+bool showAnswer = false;
 
 void setup(void) {
   // Initialize serial (for debugging)
   Serial.begin(115200);
   delay(500);
-  
   // Initialize the file manager
   if (!LittleFS.begin()) {
     Serial.println("LittleFS mount failed");
+  } else {
+    Serial.println("LittleFS mounted!");
   }
-  
+
+  Serial.println("Initializing Display");
   // Initialize the display
   display.init();
   display.clear();
@@ -37,56 +47,53 @@ void setup(void) {
   display.setEpdMode(epd_mode_t::epd_fastest);
   display.startWrite();
 
-  // Draw title
+  Serial.println("Creating flashcards");
+  deck = new FlashcardDeck();
+  Serial.println("Loading flashcards");
+  if (deck->loadFromCSV("/flashcards.csv")) {
+    Serial.println("Loaded cards");
+  } else {
+    Serial.println("Failed to load cards");
+  }
+
+  drawScreen();
+}
+
+
+void drawScreen() {
   display.setTextColor(TFT_BLACK);
-  display.setTextDatum(textdatum_t::top_center);
-  display.drawString("M5Paper File Reader", display.width() / 2, 30);
-  
-  // Draw text area
-  display.drawRect(textX, textY, textWidth, textHeight, TFT_BLACK);
-  
-  // Draw button
-  myButton.draw(display);
+  display.fillScreen(TFT_WHITE);
+
+  display.drawRect(cardX, cardY, cardWidth, cardHeight, TFT_BLACK);
+
+  Flashcard& card = deck->getCurrentCard();
+  display.setTextDatum(textdatum_t::middle_center);
+  // display.setFont(&fonts::Font7);
+  display.setFont(&fonts::efontCN_24);
+  display.setTextSize(2.0);
+  display.drawString(card.character, display.width() / 2, cardY + 60);
+  display.setFont(&fonts::FreeSerif9pt7b);
+  display.setTextSize(1.0);
+  if (showAnswer) {
+    display.setFont(&fonts::DejaVu18);
+    display.drawString(card.pinyin, display.width() / 2, cardY + 120);
+    display.drawString(card.definition, display.width() / 2, cardY + 150);
+    correctButton.draw(display);
+    wrongButton.draw(display);
+  } else {
+    flipButton.draw(display);
+    nextButton.draw(display);
+  }
+
   display.display();
 }
 
-void readAndDisplayFile() {
-  // Clear text area
-  display.fillRect(textX, textY, textWidth, textHeight, TFT_WHITE);
-  display.drawRect(textX, textY, textWidth, textHeight, TFT_BLACK);
-  
-  // Read file content
-  String fileContent = fileManager.readFile("/flashcards.csv", 3); // Read first line
-  
-  if (fileContent.length() == 0) {
-    display.setTextColor(TFT_BLACK);
-    display.setCursor(textX + 10, textY + 20);
-    display.println("Error: File not found or empty!");
-    return;
-  }
-  
-  // Display the content
-  display.setTextColor(TFT_BLACK);
-  display.setCursor(textX + 10, textY + 20);
-  
-  int lineHeight = 20;
-  int currentY = textY + 20;
-  int lastBreak = 0;
-  
-  for (int i = 0; i < fileContent.length(); i++) {
-    if (fileContent[i] == '\n') {
-      display.setCursor(textX + 10, currentY);
-      display.println(fileContent.substring(lastBreak, i));
-      lastBreak = i + 1;
-      currentY += lineHeight;
-    }
-  }
-  
-  // Print the last line if needed
-  if (lastBreak < fileContent.length()) {
-    display.setCursor(textX + 10, currentY);
-    display.println(fileContent.substring(lastBreak));
-  }
+void handleCardResponse(bool wasCorrect) {
+  deck->updateCurrentCard(wasCorrect);
+  deck->saveProgress("/flashcard_progress.dat");
+  deck->getNextCard();
+  showAnswer = false;
+  drawScreen();
 }
 
 void loop(void) {
@@ -94,23 +101,29 @@ void loop(void) {
   int nums = display.getTouchRaw(tp, 3);
   if (nums) {
     display.convertRawXY(tp, nums);
-    if (myButton.isTouched(tp, nums)) {
-      // Visual feedback - show button press
-      myButton.draw(display, true);
-      display.display();
-      
-      // Read and display file contents
-      readAndDisplayFile();
-      display.display();
-
-      // Reset button appearance after a delay
-      vTaskDelay(500 / portTICK_PERIOD_MS);
-      myButton.draw(display);
-      display.display();
+    if (!showAnswer) {
+      if (flipButton.isTouched(tp, nums)) {
+        showAnswer = true;
+        drawScreen();
+      } else if (nextButton.isTouched(tp, nums)) {
+        deck->getNextCard();
+        showAnswer = false;
+        drawScreen();
+      }
+    } else {
+      if (correctButton.isTouched(tp, nums)) {
+        handleCardResponse(true);
+      } else if (wrongButton.isTouched(tp, nums)) {
+        handleCardResponse(false);
+      }
     }
   } else {
-    myButton.reset_touch();
+    flipButton.reset_touch();
+    correctButton.reset_touch();
+    wrongButton.reset_touch();
+    nextButton.reset_touch();
   }
+
 
   vTaskDelay(10);
 }

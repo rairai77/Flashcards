@@ -2,6 +2,7 @@
 #define FLASHCARD_DECK_H
 
 #include "Flashcard.h"
+#include <Arduino.h>
 
 class FlashcardDeck {
 private:

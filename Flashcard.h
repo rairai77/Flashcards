@@ -1,6 +1,8 @@
 #ifndef FLASHCARD_H
 #define FLASHCARD_H
 
+#include <Arduino.h>
+
 class Flashcard {
 public:
   String character;

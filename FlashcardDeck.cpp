@@ -38,16 +38,24 @@ bool FlashcardDeck::loadFromCSV(const char* filename) {
     int c2 = line.indexOf(',', c1 + 1);
 
     if (c1 > 0 && c2 > 0) {
-      cards[totalCards] = Flashcard(
-        line.substring(0, c1),       // char
-        line.substring(c1 + 1, c2),  // pinyin
-        line.substring(c2 + 1),      // definition
+      Serial.println("reading card" + String(totalCards) + " " + line);
+      Serial.println("reading character");
+      String character = line.substring(0, c1);  // char
+      Serial.println("reading pinyin");
+      String pinyin = line.substring(c1 + 1, c2);
+      Serial.println("reading definition");
+      String definition = line.substring(c2 + 1);  // definition
+      Serial.println("actually adding the card");
+      new (&cards[totalCards]) Flashcard(
+        character, pinyin, definition,
         1.0,
         false);
+      Serial.println("Incrementing counter");
       totalCards++;
     }
   }
   file.close();
+  Serial.println("Reading progress");
   loadProgress("/flashcard_progress.dat");
   return (totalCards > 0);
 }
