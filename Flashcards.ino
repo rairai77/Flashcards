@@ -1,6 +1,7 @@
 #include <epdiy.h>
 #include <M5GFX.h>
 #include <LittleFS.h>
+#include "esp_sleep.h"
 #include "TouchButton.h"
 #include "FlashcardDeck.h"
 #include "Flashcard.h"
@@ -90,17 +91,27 @@ void drawScreen() {
 
 void handleCardResponse(bool wasCorrect) {
   deck->updateCurrentCard(wasCorrect);
-  deck->saveProgress("/flashcard_progress.dat");
   deck->getNextCard();
   showAnswer = false;
   drawScreen();
 }
 
+void shutdownSequence() {
+  deck->saveProgress("/flashcard_progress.dat");
+  display.setBrightness(0);
+  display.powerSaveOn();
+  Serial.flush();
+  esp_deep_sleep_start();
+}
+
 void loop(void) {
+  static unsigned long lastActivityTime = millis();
+
   lgfx::touch_point_t tp[3];
   int nums = display.getTouchRaw(tp, 3);
   if (nums) {
     display.convertRawXY(tp, nums);
+    lastActivityTime = millis();
     if (!showAnswer) {
       if (flipButton.isTouched(tp, nums)) {
         showAnswer = true;
@@ -122,8 +133,9 @@ void loop(void) {
     correctButton.reset_touch();
     wrongButton.reset_touch();
     nextButton.reset_touch();
+    if(millis() - lastActivityTime > 30000) {
+      shutdownSequence();
+    }
   }
-
-
   vTaskDelay(10);
 }
